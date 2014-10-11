@@ -1,0 +1,205 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+    <script src="/peer.min.js"></script>
+    <title></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+</head>
+<body>
+    <div id="data">
+    </div>
+    <img src="/bat.png" id="bat" width="400px" style="position:absolute;transform-origin:0% 0%;" />
+    
+</body>
+
+<script type="text/javascript">
+
+		var server_ip = "192.168.1.46";
+		var server_port = 9000;
+		var server_path = "";
+
+		// detect mobile which will be client
+   	if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)){
+   		// client code
+ 
+   		// maintains the orientation and acceleration
+	    var aX, aY, aZ, alpha, beta, gamma, rotation_alpha, rotation_beta, rotation_gamma;
+
+	    window.addEventListener("devicemotion", 
+	    	function(eventData){
+	    		aX = eventData.acceleration.x*1;
+	    		aY = eventData.acceleration.y*1;
+	    		aZ = eventData.acceleration.z*1;
+
+	    		rotation_alpha = eventData.rotationRate.alpha*1;
+	    		rotation_gamma = eventData.rotationRate.gamma*1;
+	    		rotation_beta = eventData.rotationRate.beta*1;
+	    	}, 
+	    false);
+
+
+	    // window.addEventListener('deviceorientation',
+	    // 	function(eventData) {
+     //    	alpha = eventData.alpha;
+     //    	beta = eventData.beta;
+     //    	gamma = eventData.gamma;
+     //  	}, 
+     //  false);
+
+
+	    // connects and send data to server
+
+	    var peer = new Peer('client', { host: server_ip, port: server_port, path: server_path});
+   		peer.on('open', function(id) {
+   			console.log("Hello, i m client!");
+	      console.log('My peer ID is: ' + id);
+	    });
+
+
+	    var send_timeout;
+	    var conn = peer.connect('server');
+
+	    sendDataToServer = function(){
+	    	//conn.send(aX.toString() + "," + aY.toString() + "," + aZ.toString());
+	    	var data = {
+	    		'gamma' : gamma,
+	    		'alpha' : alpha,
+	    		'beta' : beta,
+	    		'aX' : aX,
+	    		'aY' : aY,
+	    		'aZ' : aZ,
+	    		'rotation_alpha' : rotation_alpha,
+	    		'rotation_beta' : rotation_beta,
+	    		'rotation_gamma' : rotation_gamma
+	    	}
+	    	conn.send(data);
+	    }
+
+	    conn.on('open', function(){
+	    	send_timeout = setInterval(sendDataToServer, 100);
+	    });
+
+   	}
+   	else
+   	{
+   		// server code
+
+   		var peer = new Peer('server', { host: server_ip, port: server_port, path: server_path});
+   		peer.on('open', function(id) {
+   				console.log("Hello, i m server!");
+	        console.log('My peer ID is: ' + id);
+	    });
+
+	    var _counter = 3;
+	    var ball_started = false;
+	    var ball_countdown;
+
+	    var ball_duration = 7;
+	    var ball_duration_countdown;
+
+	    var detect_ball_end = function(){
+	    	ball_duration--;
+	    	if(ball_duration == 0){
+	    		clearInterval(ball_duration_countdown);
+	    		reset_ball();
+	    	}
+	    	else
+	    	{
+	    		document.getElementById("data").innerHTML = "play now... " + ball_duration.toString() + " seconds remaining";
+	    	}
+	    }
+
+	    var ball_timer = function(){
+	    	_counter--;	
+	    	if(_counter == 0){
+	    		clearInterval(ball_countdown);
+	    		document.getElementById("data").innerHTML = "play now";	    		
+	 				ball_started = true;
+	    		ball_duration = 7;
+	    		ball_duration_countdown = setInterval(detect_ball_end, 1000);
+	    	}
+	    	else {
+	    		document.getElementById("data").innerHTML = "Position yourself. Next ball coming in " + _counter.toString() + " seconds";
+	    	}
+	    }
+
+	    var reset_bat = function(){
+	    	//reset the position of the bat
+	    	document.getElementById("bat").style.webkitTransform = "rotateZ(0deg) rotateY(0deg) rotateX(0deg)";
+	    	document.getElementById("bat").style.left = "200px";
+	    	document.getElementById("bat").style.top = "100px";
+	    }
+
+			var reset_ball = function(){
+				ball_started = false;
+				_counter = 3;
+				document.getElementById("data").innerHTML = "Position yourself. Next ball coming in " + _counter.toString() + " seconds";
+				ball_countdown = setInterval(ball_timer,1000);
+				reset_bat();
+			}
+
+
+	    
+	    reset_ball();
+	    
+
+
+	    peer.on('connection', function(conn) {
+
+	        conn.on('data', function(data){
+
+	        	if(ball_started){
+	        		var alpha = data['alpha'];
+		        	var gamma = data['gamma'];
+		        	var beta = data['beta'];
+		        	var aX = data['aX'];
+		        	var aY = data['aY'];
+		        	var aZ = data['aZ'];
+		        	var rotation_alpha = data['rotation_alpha'];
+		        	var rotation_beta = data['rotation_beta'];
+		        	var rotation_gamma = data['rotation_gamma'];
+
+		        	//console.log(rotation_alpha, rotation_beta, rotation_gamma);
+
+		       
+		          
+		          //handles the rotations
+
+		          var current_angle_with_x = parseInt(document.getElementById("bat").style.webkitTransform.match(/rotateX\((.*)deg\)/)[1]);
+		          var current_angle_with_y = parseInt(document.getElementById("bat").style.webkitTransform.match(/rotateY\((.*)deg\)/)[1]);
+		          var current_angle_with_z = parseInt(document.getElementById("bat").style.webkitTransform.match(/rotateZ\((.*)deg\)/)[1]);
+
+		          document.getElementById("bat").style.webkitTransform = "rotateZ("+ (current_angle_with_z + rotation_gamma * -4)+"deg) rotateY(" + (current_angle_with_y + rotation_alpha * -4)+"deg) rotateX("+ (current_angle_with_x + rotation_beta*-5)+"deg)";
+	 
+
+		          console.log(aX);
+	 						// handle the movements
+	 						var cur_x = document.getElementById('bat').x;
+	 						var cur_y = document.getElementById('bat').y;
+
+	 						if(Math.abs(aX) > 20)
+	 							aX = aX/Math.abs(aX) * 5;
+	 						else
+	 							aX = 0;
+
+	 						if(Math.abs(aY) > 20)
+	 							aY = aY/Math.abs(aY) * 5;
+	 						else
+	 							aY = 0;
+
+	 						var new_x = cur_x + aY * 5;
+	 						var new_y = cur_y - aX * 5;
+
+	 						
+	 						document.getElementById('bat').style.left = new_x.toString()+"px";
+	 						document.getElementById('bat').style.top = new_y.toString()+"px";
+
+
+	        	}
+	        });
+	    });
+   	}
+
+</script>
+</html>
