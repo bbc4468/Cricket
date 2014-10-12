@@ -94,13 +94,13 @@
 	    var _counter = 3;
 	    var ball_started = false;
 	    var ball_countdown;
-
+	    var shot_taken = false;
 	    var ball_duration = 7;
 	    var ball_duration_countdown;
 
 	    var detect_ball_end = function(){
 	    	ball_duration--;
-	    	if(ball_duration == 0){
+	    	if(ball_duration < 0){
 	    		clearInterval(ball_duration_countdown);
 	    		reset_ball();
 	    	}
@@ -112,9 +112,10 @@
 
 	    var ball_timer = function(){
 	    	_counter--;	
-	    	if(_counter == 0){
+	    	if(_counter < 0){
 	    		clearInterval(ball_countdown);
 	    		document.getElementById("data").innerHTML = "play now";	    		
+	    		shot_taken = false;
 	 				ball_started = true;
 	    		ball_duration = 7;
 	    		ball_duration_countdown = setInterval(detect_ball_end, 1000);
@@ -129,10 +130,12 @@
 	    	document.getElementById("bat").style.webkitTransform = "rotateZ(0deg) rotateY(0deg) rotateX(0deg)";
 	    	document.getElementById("bat").style.left = "200px";
 	    	document.getElementById("bat").style.top = "100px";
+	    	vx = 0, vy = 0; 
 	    }
 
 			var reset_ball = function(){
 				ball_started = false;
+				ball_duration = 7;
 				_counter = 3;
 				document.getElementById("data").innerHTML = "Position yourself. Next ball coming in " + _counter.toString() + " seconds";
 				ball_countdown = setInterval(ball_timer,1000);
@@ -143,13 +146,13 @@
 	    
 	    reset_ball();
 	    
-
+	    
 
 	    peer.on('connection', function(conn) {
 
 	        conn.on('data', function(data){
 
-	        	if(ball_started){
+	        	if(ball_started && !shot_taken){
 	        		var alpha = data['alpha'];
 		        	var gamma = data['gamma'];
 		        	var beta = data['beta'];
@@ -170,31 +173,33 @@
 		          var current_angle_with_y = parseInt(document.getElementById("bat").style.webkitTransform.match(/rotateY\((.*)deg\)/)[1]);
 		          var current_angle_with_z = parseInt(document.getElementById("bat").style.webkitTransform.match(/rotateZ\((.*)deg\)/)[1]);
 
-		          document.getElementById("bat").style.webkitTransform = "rotateZ("+ (current_angle_with_z + rotation_gamma * -4)+"deg) rotateY(" + (current_angle_with_y + rotation_alpha * -4)+"deg) rotateX("+ (current_angle_with_x + rotation_beta*-5)+"deg)";
+		          document.getElementById("bat").style.webkitTransform = "rotateZ("+ (current_angle_with_z + rotation_gamma * -4)+"deg) rotateY(" + (current_angle_with_y + rotation_alpha * -0)+"deg) rotateX("+ (current_angle_with_x + rotation_beta*-4)+"deg)";
 	 
 
-		          console.log(aX);
+		          
 	 						// handle the movements
-	 						var cur_x = document.getElementById('bat').x;
-	 						var cur_y = document.getElementById('bat').y;
+	 						var cur_x = parseInt(document.getElementById('bat').style.left.match(/(.*)px/)[1]);
+	 						var cur_y = parseInt(document.getElementById('bat').style.top.match(/(.*)px/)[1]);
 
-	 						if(Math.abs(aX) > 20)
-	 							aX = aX/Math.abs(aX) * 5;
-	 						else
-	 							aX = 0;
+	 						var reset = false;
 
-	 						if(Math.abs(aY) > 20)
-	 							aY = aY/Math.abs(aY) * 5;
-	 						else
-	 							aY = 0;
-
-	 						var new_x = cur_x + aY * 5;
-	 						var new_y = cur_y - aX * 5;
-
+	 						if(Math.abs(aX) > 10){
+	 							cur_y = cur_y - aX * 6;
+	 							reset = true;
+	 						}
 	 						
-	 						document.getElementById('bat').style.left = new_x.toString()+"px";
-	 						document.getElementById('bat').style.top = new_y.toString()+"px";
-
+	 						if(Math.abs(aY) > 10){
+	 							cur_x = cur_x + aY * 6;
+	 							reset = true;	
+	 						}
+	 						
+	 						if(reset){
+	 							console.log(aX, aY);
+	 							document.getElementById('bat').style.left = cur_x.toString()+"px";
+	 							document.getElementById('bat').style.top = cur_y.toString()+"px";	
+	 							shot_taken = true;
+	 							ball_duration = 2;
+	 						}
 
 	        	}
 	        });
