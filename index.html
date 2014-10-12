@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
     <script src="/peer.min.js"></script>
-    <title></title>
+    <script src="three.min.js"></script>
+    <title>Cricket</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 
 </head>
 <body>
     <div id="data">
     </div>
-    <img src="/bat.png" id="bat" width="400px" style="position:absolute;transform-origin:0% 0%;" />
+    <img src="/bat.png" id="bat" width="300px" style="position:absolute;transform-origin:0% 0%;" />
     
 </body>
 
@@ -85,17 +86,167 @@
    	{
    		// server code
 
+   		var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild( renderer.domElement );
+
+			// var geometry = new THREE.BoxGeometry(1,1,1);
+			// var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+			// var cube = new THREE.Mesh( geometry, material );
+			// scene.add( cube );
+
+			// var shadow = new THREE.BasicShadowMap();
+			// scene.add(shadow);
+
+			var planeWidth = 100, planeHeight = 1000, planeQuality = 100;
+			var fieldWidth = 100, fieldHeight = 100;
+
+			var planeMaterial =
+			new THREE.MeshLambertMaterial(
+			{
+			    color: 0x4BD121
+			});
+			 
+			// create the playing surface plane
+			var plane = new THREE.Mesh(
+			    new THREE.PlaneGeometry(
+			    planeWidth,	// 95% of table width, since we want to show where the ball goes out-of-bounds
+			    planeHeight*0.6,
+			    planeQuality),
+			    planeMaterial);
+
+			plane.position.z = -10;
+			plane.position.y = -0;
+			plane.rotation.x = 5;
+			 
+			scene.add(plane);
+
+			var sphereMaterial = new THREE.MeshLambertMaterial(
+			{
+			    color: 0xD43001
+			});
+
+			// set up the sphere vars
+			var radius = 10, segments = 15, rings = 200;
+
+			// create a new mesh with sphere geometry -
+			// we will cover the sphereMaterial next!
+			var ball = new THREE.Mesh(
+			   new THREE.SphereGeometry(radius, segments, rings),
+			   sphereMaterial);
+			scene.add(ball);
+
+
+			var pointLight =
+			new THREE.PointLight(0xFFFFFF);
+
+			// set its position
+			pointLight.position.x = 10;
+			pointLight.position.y = 50;
+			pointLight.position.z = 500;
+
+
+			// add to the scene
+			scene.add(pointLight);
+
+			camera.position.z = 500;
+
+			var ballDirZ = 1, ballDirY = 1, ballDirX = -1, ballSpeed = 2.5, ballZspeed = 2.5, ballYspeed = 0.7;
+			
+
+			var bowl = function(){
+				var randomX = (Math.random() % 2) - 1;
+
+
+				ballDirZ = 1;
+				ballDirY = 1;
+				ballDirX = randomX;
+				ballSpeed = 2.5;
+				ballZspeed = 2.5;
+				ballYspeed = 0.7;
+				//ball.position.x = -200;
+				//ball.position.y = 100;
+				ball.position.z = 0;
+				ball.position.y = 0;
+				ball.position.x = 0;
+			}
+
+			function render() {
+				requestAnimationFrame(render);
+				ball_motion();
+				//camera_position();
+
+				renderer.render(scene, camera);
+			}
+
+			
+			render();
+
+			
+			function ball_motion(){
+
+				// sphere.rotation.x -= 0.1;
+				// sphere.rotation.y -= 0.1;
+				// sphere.rotation.z -= 0.1;
+
+				// //sphere.position.x += 0.1;
+				// sphere.position.y -= 0.1;
+				// sphere.position.z += 0.5;
+				// sphere.scale.y -= 0.01;
+				// sphere.scale.x -= 0.01;
+				// sphere.rotation.y += 0.1;
+				// sphere.rotation.z += 0.1;
+				console.log(ballSpeed, ballYspeed, ballZspeed);
+				ball.position.z += (ballDirZ * ballZspeed * ballSpeed);
+				ball.position.y -= ballDirY * ballYspeed * ballSpeed;
+				ball.position.x -= ballDirX * 0.2 * ballSpeed;
+				// limit ball's y-speed to 2x the x-speed
+				// this is so the ball doesn't speed from left to right super fast
+				// keeps game playable for humans
+				if (ballDirY > ballSpeed * 2)
+				{
+				    ballDirY = ballSpeed * 2;
+				}
+				else if (ballDirY < -ballSpeed * 2)
+				{
+				    ballDirY = -ballSpeed * 2;
+				}
+
+				// if ball goes off the top side (side of table)
+				if (ball.position.y <= -fieldWidth/2)
+				{
+				    ballDirY = -ballDirY;
+				    // ballZspeed = 1;
+				}	
+				 
+				// if ball goes off the bottom side (side of table)
+				if (ball.position.y >= fieldWidth/2)
+				{
+				    ballDirY = -ballDirY;
+				}
+			}
+
+			function camera_position() {
+				camera.position.x += 0.7;
+				camera.position.y += 0.7; 
+			}
+			
+
+
    		var peer = new Peer('server', { host: server_ip, port: server_port, path: server_path});
    		peer.on('open', function(id) {
    				console.log("Hello, i m server!");
 	        console.log('My peer ID is: ' + id);
 	    });
 
-	    var _counter = 3;
+	    var _counter = 2;
 	    var ball_started = false;
 	    var ball_countdown;
 	    var shot_taken = false;
-	    var ball_duration = 7;
+	    var ball_duration = 3;
 	    var ball_duration_countdown;
 
 	    var detect_ball_end = function(){
@@ -114,10 +265,11 @@
 	    	_counter--;	
 	    	if(_counter < 0){
 	    		clearInterval(ball_countdown);
-	    		document.getElementById("data").innerHTML = "play now";	    		
+	    		document.getElementById("data").innerHTML = "play now";
+	    		bowl();
 	    		shot_taken = false;
 	 				ball_started = true;
-	    		ball_duration = 7;
+	    		ball_duration = 3;
 	    		ball_duration_countdown = setInterval(detect_ball_end, 1000);
 	    	}
 	    	else {
@@ -128,15 +280,15 @@
 	    var reset_bat = function(){
 	    	//reset the position of the bat
 	    	document.getElementById("bat").style.webkitTransform = "rotateZ(0deg) rotateY(0deg) rotateX(0deg)";
-	    	document.getElementById("bat").style.left = "200px";
-	    	document.getElementById("bat").style.top = "100px";
+	    	document.getElementById("bat").style.left = "400px";
+	    	document.getElementById("bat").style.top = "300px";
 	    	vx = 0, vy = 0; 
 	    }
 
 			var reset_ball = function(){
 				ball_started = false;
-				ball_duration = 7;
-				_counter = 3;
+				ball_duration = 3;
+				_counter = 2;
 				document.getElementById("data").innerHTML = "Position yourself. Next ball coming in " + _counter.toString() + " seconds";
 				ball_countdown = setInterval(ball_timer,1000);
 				reset_bat();
